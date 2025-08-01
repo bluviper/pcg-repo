@@ -38,14 +38,14 @@ class Pipeline:
         Settings.llm = Ollama(
             model="mistral:7b-instruct-v0.2-q4_K_M",
             base_url="http://portable-ollama:11434",
-            request_timeout=300.0 # Increase timeout to 5 minutes (300 seconds)
+            request_timeout=600.0 # Increase timeout to 5 minutes (300 seconds)
         )
         # Configure LlamaIndex to use Ollama for Embeddings
         # Add request_timeout
         Settings.embed_model = OllamaEmbedding(
             model_name="nomic-embed-text",
             base_url="http://portable-ollama:11434",
-            request_timeout=300.0 # Increase timeout
+            request_timeout=600.0 # Increase timeout
 
         # Define the persistent storage path inside the container
         PERSIST_DIR = "./index_storage" # Maps to your host's ./index_storage
