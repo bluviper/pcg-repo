@@ -14,13 +14,6 @@ from typing import List, Union, Generator, Iterator
 import os
 import sys # Keep sys and os if you use sys.path.insert for other debugging, otherwise can remove if not needed.
 
-# --- REMOVE THESE sys.path DEBUGGING LINES FOR GITHUB UPLOAD ---
-# They are not needed when the file is directly managed by the server's loader.
-# sys.path.insert(0, '/app/backend/app')
-# sys.path.insert(0, '/usr/local/lib/python3.11/site-packages/openwebui_backend/app')
-# sys.path.insert(0, '/app')
-# --- END sys.path DEBUGGING ---
-
 from schemas import OpenAIChatMessage # Keep UNCOMMENTED
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, StorageContext, load_index_from_storage
 from llama_index.llms.ollama import Ollama
@@ -40,7 +33,19 @@ class Pipeline:
         # print("--- Pipeline instance initialized (in __init__). ---") # Remove from final
 
     async def on_startup(self):
-        # print("--- on_startup method called. ---") # Remove from final
+        # Configure LlamaIndex to use Ollama for LLM
+        # Add request_timeout
+        Settings.llm = Ollama(
+            model="mistral:7b-instruct-v0.2-q4_K_M",
+            base_url="http://portable-ollama:11434",
+            request_timeout=300.0 # Increase timeout to 5 minutes (300 seconds)
+        )
+        # Configure LlamaIndex to use Ollama for Embeddings
+        # Add request_timeout
+        Settings.embed_model = OllamaEmbedding(
+            model_name="nomic-embed-text",
+            base_url="http://portable-ollama:11434",
+            request_timeout=300.0 # Increase timeout
 
         # Define the persistent storage path inside the container
         PERSIST_DIR = "./index_storage" # Maps to your host's ./index_storage
