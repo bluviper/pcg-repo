@@ -102,7 +102,3 @@ class Pipeline:
         response = query_engine.query(user_message)
 
         return response.response_gen# llamaindex_pipeline.py (SUPER MINIMAL TEST - CURRENT VERSION)
-
-        except Exception as e:
-            # ... (error handling) ...
-            pass
