@@ -121,4 +121,3 @@ class Pipeline:
 
         print("--- Query executed, returning response generator. ---")
         return response.response_gen
-
