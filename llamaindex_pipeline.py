@@ -87,15 +87,16 @@ class Pipeline:
             if not os.path.exists(PERSIST_DIR) or not os.listdir(PERSIST_DIR):
                 print(f"--- Index storage directory {PERSIST_DIR} not found or empty. Building new index. ---")
                 self.documents = SimpleDirectoryReader("./docs").load_data()
-                print(f"--- Loaded {len(self.documents)} documents from ./docs. ---")
+                print("--- Attempting to create VectorStoreIndex from documents. ---") # NEW PRINT
                 self.index = VectorStoreIndex.from_documents(self.documents)
-                print("--- LlamaIndex vector store index created. ---")
+                print("--- VectorStoreIndex creation successful. ---") # NEW PRINT
                 self.index.storage_context.persist(persist_dir=PERSIST_DIR)
                 print(f"--- Index persisted to {PERSIST_DIR}. ---")
             else:
                 print(f"--- Loading index from {PERSIST_DIR}. ---")
+                print("--- Attempting to load VectorStoreIndex from storage. ---") # NEW PRINT
                 self.index = load_index_from_storage(StorageContext.from_defaults(persist_dir=PERSIST_DIR))
-                print("--- LlamaIndex index loaded from storage. ---")
+                print("--- VectorStoreIndex loaded from storage successful. ---") # NEW PRINT
 
         except Exception as e:
             print(f"--- CRITICAL ERROR IN ON_STARTUP: {e} ---")
