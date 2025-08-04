@@ -59,7 +59,7 @@ class Pipeline:
         PERSIST_DIR = "./index_storage"
         os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "")
 
-llm_model_val = getattr(self, "llm_model", self.llm_model)
+            llm_model_val = getattr(self, "llm_model", self.llm_model)
             embedding_model_val = getattr(self, "embedding_model", self.embedding_model)
             timeout_val = getattr(self, "request_timeout_seconds", self.request_timeout_seconds)
             top_k_val = getattr(self, "top_k_retrieval", self.top_k_retrieval)
@@ -124,3 +124,4 @@ llm_model_val = getattr(self, "llm_model", self.llm_model)
 
         print("--- Query executed, returning response generator. ---")
         return response.response_gen
+
