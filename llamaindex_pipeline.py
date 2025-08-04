@@ -67,17 +67,24 @@ class Pipeline:
         PERSIST_DIR = "./index_storage"
         os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "")
 
+        # IMPORTANT: Retrieve valve values from self (the Pipeline instance)
+        # The Pipelines framework will inject these from the UI.
+        llm_model = getattr(self, "llm_model", "mistral:7b-instruct-v0.2-q4_K_M") # Default if not set
+        embedding_model = getattr(self, "embedding_model", "nomic-embed-text")
+        timeout = getattr(self, "request_timeout_seconds", 600.0)
+        top_k = getattr(self, "top_k_retrieval", 3)
+      
         try:
             # Configure LLM and embedding
             Settings.llm = Ollama(
                 model="mistral:7b-instruct-v0.2-q4_K_M",
                 base_url="http://portable-ollama:11434",
-                request_timeout=600.0
+                request_timeout=timeout
             )
             Settings.embed_model = OllamaEmbedding(
                 model_name="nomic-embed-text",
                 base_url="http://portable-ollama:11434",
-                request_timeout=600.0
+                request_timeout=timeout
             )
 
             print(f"--- LLM set to: {Settings.llm.model} at {Settings.llm.base_url}")
@@ -125,3 +132,4 @@ class Pipeline:
 
         print("--- Query executed, returning response generator. ---")
         return response.response_gen
+
