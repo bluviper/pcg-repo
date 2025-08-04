@@ -127,9 +127,10 @@ class Pipeline:
         print("Received user message:", user_message)
         print("Received full messages object:", messages)
 
-        query_engine = self.index.as_query_engine(streaming=True)
+        query_engine = self.index.as_query_engine(streaming=True, similarity_top_k=top_k)
         response = query_engine.query(user_message)
 
         print("--- Query executed, returning response generator. ---")
         return response.response_gen
+
 
