@@ -7,7 +7,6 @@ license: MIT
 description: A pipeline for retrieving relevant information from a knowledge base using the Llama Index library.
 requirements: llama-index
 
-# --- THIS IS THE SECTION TO PAY ATTENTION TO ---
 valves:
   - name: llm_model
     type: text
@@ -48,6 +47,11 @@ class Pipeline:
     def __init__(self):
         self.documents = None
         self.index = None
+              # Add attributes to store valve values, initialized to None or defaults
+        self.llm_model = None
+        self.embedding_model = None
+        self.request_timeout_seconds = None
+        self.top_k_retrieval = None # Add this attribute
         print("--- Pipeline instance initialized. ---")
 
     async def on_startup(self):
@@ -58,22 +62,27 @@ class Pipeline:
 
         # IMPORTANT: Retrieve valve values from self (the Pipeline instance)
         # The Pipelines framework will inject these from the UI.
-        llm_model = getattr(self, "llm_model", "mistral:7b-instruct-v0.2-q4_K_M") # Default if not set
-        embedding_model = getattr(self, "embedding_model", "nomic-embed-text")
-        timeout = getattr(self, "request_timeout_seconds", 600.0)
-        top_k = getattr(self, "top_k_retrieval", 3)
+        # llm_model = getattr(self, "llm_model", "mistral:7b-instruct-v0.2-q4_K_M") # Default if not set
+        # embedding_model = getattr(self, "embedding_model", "nomic-embed-text")
+        # timeout = getattr(self, "request_timeout_seconds", 600.0)
+        # top_k = getattr(self, "top_k_retrieval", 3)
+                    # And store them as instance attributes (self.attribute_name)
+        self.llm_model = getattr(self, "llm_model", "mistral:7b-instruct-v0.2-q4_K_M")
+        self.embedding_model = getattr(self, "embedding_model", "nomic-embed-text")
+        self.request_timeout_seconds = getattr(self, "request_timeout_seconds", 600.0)
+        self.top_k_retrieval = getattr(self, "top_k_retrieval", 3) # Store top_k as an instance attribute
       
         try:
             # Configure LLM and embedding
             Settings.llm = Ollama(
                 model="mistral:7b-instruct-v0.2-q4_K_M",
                 base_url="http://portable-ollama:11434",
-                request_timeout=timeout
+                request_timeout=self.request_timeout_seconds
             )
             Settings.embed_model = OllamaEmbedding(
                 model_name="nomic-embed-text",
                 base_url="http://portable-ollama:11434",
-                request_timeout=timeout
+                 request_timeout=self.request_timeout_seconds
             )
 
             print(f"--- LLM set to: {Settings.llm.model} at {Settings.llm.base_url}")
@@ -116,7 +125,7 @@ class Pipeline:
         print("Received user message:", user_message)
         print("Received full messages object:", messages)
 
-        query_engine = self.index.as_query_engine(streaming=True, similarity_top_k=top_k)
+        query_engine = self.index.as_query_engine(streaming=True, similarity_top_k=self.top_k_retrieval)
         response = query_engine.query(user_message)
 
         print("--- Query executed, returning response generator. ---")
