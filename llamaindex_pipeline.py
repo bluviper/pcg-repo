@@ -59,64 +59,58 @@ class Pipeline:
         PERSIST_DIR = "./index_storage"
         os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "")
 
-        # --- Valve retrieval and LLM/Embed setup (GUARANTEED TO RUN) ---
-        # Retrieve valve values. If framework doesn't set them on 'self',
-        # they will fall back to the defaults initialized in __init__.
-        llm_model_val = getattr(self, "llm_model", self.llm_model)
-        embedding_model_val = getattr(self, "embedding_model", self.embedding_model)
-        timeout_val = getattr(self, "request_timeout_seconds", self.request_timeout_seconds)
-        top_k_val = getattr(self, "top_k_retrieval", self.top_k_retrieval)
+llm_model_val = getattr(self, "llm_model", self.llm_model)
+            embedding_model_val = getattr(self, "embedding_model", self.embedding_model)
+            timeout_val = getattr(self, "request_timeout_seconds", self.request_timeout_seconds)
+            top_k_val = getattr(self, "top_k_retrieval", self.top_k_retrieval)
 
-        # Configure LLM and embedding models
-        Settings.llm = Ollama(
-            model=llm_model_val,
-            base_url="http://portable-ollama:11434",
-            request_timeout=timeout_val
-        )
-        Settings.embed_model = OllamaEmbedding(
-            model_name=embedding_model_val,
-            base_url="http://portable-ollama:11434",
-            request_timeout=timeout_val
-        )
+            Settings.llm = Ollama(
+                model=llm_model_val,
+                base_url="http://portable-ollama:11434",
+                request_timeout=timeout_val
+            )
+            print(f"--- LLM set to: {Settings.llm.model} at {Settings.llm.base_url} (Timeout: {Settings.llm.request_timeout}) ---")
 
-        print(f"--- LLM set to: {Settings.llm.model} at {Settings.llm.base_url} (Timeout: {Settings.llm.request_timeout}) ---")
-        print(f"--- Embedding model: {Settings.embed_model.model_name} at {Settings.embed_model.base_url} (Timeout: {Settings.embed_model.request_timeout}) ---")
+            print("--- Attempting to set Embedding Model. ---") # NEW PRINT
+            Settings.embed_model = OllamaEmbedding(
+                model_name=embedding_model_val,
+                base_url="http://portable-ollama:11434",
+                request_timeout=timeout_val
+            )
+            print(f"--- Embedding model: {Settings.embed_model.model_name} at {Settings.embed_model.base_url} (Timeout: {Settings.embed_model.request_timeout}) ---") # NEW PRINT
 
-        # Debugging sys.path (optional, remove in final)
-        # print("--- Current sys.path for debugging: ---")
-        # for p in sys.path:
-        #     print(f"  - {p}")
-        # print("---------------------------------------")
-        # --- End Valve retrieval and LLM/Embed setup ---
+            print("--- Current sys.path for debugging: ---") # Keep if helpful, remove in final
+            for p in sys.path:
+                print(f"  - {p}")
+            print("---------------------------------------")
 
-        try:
-            # --- LlamaIndex indexing/loading logic (This is the part that might throw exceptions) ---
+            print("--- Starting index creation/loading logic. ---") # NEW PRINT
             if not os.path.exists(PERSIST_DIR) or not os.listdir(PERSIST_DIR):
                 print(f"--- Index storage directory {PERSIST_DIR} not found or empty. Building new index. ---")
                 self.documents = SimpleDirectoryReader("./docs").load_data()
                 print(f"--- Loaded {len(self.documents)} documents from ./docs. ---")
 
+                print("--- Attempting to create VectorStoreIndex from documents. ---")
                 self.index = VectorStoreIndex.from_documents(self.documents)
-                print("--- LlamaIndex vector store index created. ---")
+                print("--- VectorStoreIndex creation successful. ---")
+
+                print("--- Attempting to persist index. ---")
                 self.index.storage_context.persist(persist_dir=PERSIST_DIR)
                 print(f"--- Index persisted to {PERSIST_DIR}. ---")
             else:
                 print(f"--- Loading index from {PERSIST_DIR}. ---")
+                print("--- Attempting to load VectorStoreIndex from storage. ---")
                 self.index = load_index_from_storage(StorageContext.from_defaults(persist_dir=PERSIST_DIR))
-                print("--- LlamaIndex index loaded from storage. ---")
+                print("--- VectorStoreIndex loaded from storage successful. ---")
+            print("--- Finished index creation/loading logic. ---") # NEW PRINT
 
         except Exception as e:
-            # This 'except' block specifically catches errors in index creation/loading
             print(f"--- CRITICAL ERROR IN ON_STARTUP (Index/Storage): {e} ---")
             import traceback
             traceback.print_exc()
             raise
 
         print("--- on_startup completed successfully. ---")
-
-    async def on_shutdown(self):
-        print("--- on_shutdown called. ---")
-        pass
 
     def pipe(
         self, user_message: str, model_id: str, messages: List[dict], body: dict
