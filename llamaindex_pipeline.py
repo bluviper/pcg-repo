@@ -7,12 +7,11 @@ license: MIT
 description: A pipeline for retrieving relevant information from a knowledge base using the Llama Index library.
 requirements: llama-index
 
-# --- ADD THIS VALVES SECTION ---
-valves:
-  - name: llm_model
-    type: text
-    default: mistral:7b-instruct-v0.2-q4_K_M
-    description: The Ollama LLM model to use for RAG responses.
+valves: # No indentation before 'valves:'
+  - name: llm_model # Two spaces indent
+    type: text # Two spaces indent
+    default: mistral:7b-instruct-v0.2-q4_K_M # Two spaces indent
+    description: The Ollama LLM model to use for RAG responses. # Two spaces indent
   - name: embedding_model
     type: text
     default: nomic-embed-text
@@ -25,7 +24,6 @@ valves:
     type: number
     default: 3
     description: Number of top relevant documents to retrieve for RAG.
-# --- END VALVES SECTION ---
 """
 
 
@@ -132,5 +130,6 @@ class Pipeline:
 
         print("--- Query executed, returning response generator. ---")
         return response.response_gen
+
 
 
