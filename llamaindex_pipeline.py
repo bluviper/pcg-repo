@@ -7,37 +7,28 @@ license: MIT
 description: A pipeline for retrieving relevant information from a knowledge base using the Llama Index library.
 requirements: llama-index
 
-valves: # No indentation before 'valves:'
-  - name: llm_model # Two spaces indent
-    type: text # Two spaces indent
-    default: mistral:7b-instruct-v0.2-q4_K_M # Two spaces indent
-    description: The Ollama LLM model to use for RAG responses. # Two spaces indent
+# --- THIS IS THE SECTION TO PAY ATTENTION TO ---
+valves:
+  - name: llm_model
+    type: text
+    default: mistral:7b-instruct-v0.2-q4_K_M # Your default LLM model
+    description: The Ollama LLM model to use for RAG responses.
   - name: embedding_model
     type: text
-    default: nomic-embed-text
+    default: nomic-embed-text # Your default embedding model
     description: The Ollama embedding model for indexing and retrieval.
   - name: request_timeout_seconds
     type: number
-    default: 600.0
+    default: 600.0 # Your default timeout
     description: Timeout for Ollama requests in seconds.
   - name: top_k_retrieval
     type: number
-    default: 3
+    default: 3 # Your default top_k
     description: Number of top relevant documents to retrieve for RAG.
 """
-
-
-
-
 from typing import List, Union, Generator, Iterator
 import sys
 import os
-
-# --- ADD THESE LINES FOR DEBUGGING sys.path ---
-sys.path.insert(0, '/app/backend/app')
-sys.path.insert(0, '/usr/local/lib/python3.11/site-packages/openwebui_backend/app')
-sys.path.insert(0, '/app')
-# --- END DEBUGGING sys.path ---
 
 from schemas import OpenAIChatMessage
 from llama_index.core import (
@@ -130,3 +121,4 @@ class Pipeline:
 
         print("--- Query executed, returning response generator. ---")
         return response.response_gen
+
