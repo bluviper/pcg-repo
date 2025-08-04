@@ -59,41 +59,46 @@ class Pipeline:
         PERSIST_DIR = "./index_storage"
         os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "")
 
-            llm_model_val = getattr(self, "llm_model", self.llm_model)
-            embedding_model_val = getattr(self, "embedding_model", self.embedding_model)
-            timeout_val = getattr(self, "request_timeout_seconds", self.request_timeout_seconds)
-            top_k_val = getattr(self, "top_k_retrieval", self.top_k_retrieval)
+        # --- FIX INDENTATION HERE ---
+        # These lines should be consistently indented 8 spaces from the left margin
+        # (assuming 'class Pipeline:' is at 0 spaces, and 'async def on_startup:' is at 4 spaces)
+        llm_model_val = getattr(self, "llm_model", self.llm_model)
+        embedding_model_val = getattr(self, "embedding_model", self.embedding_model)
+        timeout_val = getattr(self, "request_timeout_seconds", self.request_timeout_seconds)
+        top_k_val = getattr(self, "top_k_retrieval", self.top_k_retrieval)
 
-            Settings.llm = Ollama(
-                model=llm_model_val,
-                base_url="http://portable-ollama:11434",
-                request_timeout=timeout_val
-            )
-            print(f"--- LLM set to: {Settings.llm.model} at {Settings.llm.base_url} (Timeout: {Settings.llm.request_timeout}) ---")
+        Settings.llm = Ollama(
+            model=llm_model_val,
+            base_url="http://portable-ollama:11434",
+            request_timeout=timeout_val
+        )
+        print(f"--- LLM set to: {Settings.llm.model} at {Settings.llm.base_url} (Timeout: {Settings.llm.request_timeout}) ---")
 
-            print("--- Attempting to set Embedding Model. ---") # NEW PRINT
-            Settings.embed_model = OllamaEmbedding(
-                model_name=embedding_model_val,
-                base_url="http://portable-ollama:11434",
-                request_timeout=timeout_val
-            )
-            print(f"--- Embedding model: {Settings.embed_model.model_name} at {Settings.embed_model.base_url} (Timeout: {Settings.embed_model.request_timeout}) ---") # NEW PRINT
+        print("--- Attempting to set Embedding Model. ---")
+        Settings.embed_model = OllamaEmbedding(
+            model_name=embedding_model_val,
+            base_url="http://portable-ollama:11434",
+            request_timeout=timeout_val
+        )
+        print(f"--- Embedding model: {Settings.embed_model.model_name} at {Settings.embed_model.base_url} (Timeout: {Settings.embed_model.request_timeout}) ---")
 
-            print("--- Current sys.path for debugging: ---") # Keep if helpful, remove in final
-            for p in sys.path:
-                print(f"  - {p}")
-            print("---------------------------------------")
+        print("--- Current sys.path for debugging: ---")
+        for p in sys.path:
+            print(f"  - {p}")
+        print("---------------------------------------")
 
-            print("--- Starting index creation/loading logic. ---") # NEW PRINT
+        try:
+            # This try block starts here, so code within it is further indented.
+            print("--- Starting index creation/loading logic. ---")
             if not os.path.exists(PERSIST_DIR) or not os.listdir(PERSIST_DIR):
                 print(f"--- Index storage directory {PERSIST_DIR} not found or empty. Building new index. ---")
                 self.documents = SimpleDirectoryReader("./docs").load_data()
                 print(f"--- Loaded {len(self.documents)} documents from ./docs. ---")
-
+                
                 print("--- Attempting to create VectorStoreIndex from documents. ---")
                 self.index = VectorStoreIndex.from_documents(self.documents)
                 print("--- VectorStoreIndex creation successful. ---")
-
+                
                 print("--- Attempting to persist index. ---")
                 self.index.storage_context.persist(persist_dir=PERSIST_DIR)
                 print(f"--- Index persisted to {PERSIST_DIR}. ---")
@@ -102,7 +107,7 @@ class Pipeline:
                 print("--- Attempting to load VectorStoreIndex from storage. ---")
                 self.index = load_index_from_storage(StorageContext.from_defaults(persist_dir=PERSIST_DIR))
                 print("--- VectorStoreIndex loaded from storage successful. ---")
-            print("--- Finished index creation/loading logic. ---") # NEW PRINT
+            print("--- Finished index creation/loading logic. ---")
 
         except Exception as e:
             print(f"--- CRITICAL ERROR IN ON_STARTUP (Index/Storage): {e} ---")
@@ -111,6 +116,10 @@ class Pipeline:
             raise
 
         print("--- on_startup completed successfully. ---")
+
+    async def on_shutdown(self):
+        print("--- on_shutdown called. ---")
+        pass
 
     def pipe(
         self, user_message: str, model_id: str, messages: List[dict], body: dict
@@ -124,4 +133,3 @@ class Pipeline:
 
         print("--- Query executed, returning response generator. ---")
         return response.response_gen
-
