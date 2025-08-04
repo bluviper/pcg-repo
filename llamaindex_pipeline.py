@@ -48,10 +48,10 @@ class Pipeline:
         self.documents = None
         self.index = None
               # Add attributes to store valve values, initialized to None or defaults
-        self.llm_model = None
-        self.embedding_model = None
-        self.request_timeout_seconds = None
-        self.top_k_retrieval = None # Add this attribute
+        self.llm_model = "mistral:7b-instruct-v0.2-q4_K_M" # Default
+        self.embedding_model = "nomic-embed-text" # Default
+        self.request_timeout_seconds = 600.0 # Default
+        self.top_k_retrieval = 3 # Default
         print("--- Pipeline instance initialized. ---")
 
     async def on_startup(self):
@@ -62,36 +62,27 @@ class Pipeline:
 
         # IMPORTANT: Retrieve valve values from self (the Pipeline instance)
         # The Pipelines framework will inject these from the UI.
-        # llm_model = getattr(self, "llm_model", "mistral:7b-instruct-v0.2-q4_K_M") # Default if not set
-        # embedding_model = getattr(self, "embedding_model", "nomic-embed-text")
-        # timeout = getattr(self, "request_timeout_seconds", 600.0)
-        # top_k = getattr(self, "top_k_retrieval", 3)
+        llm_model = getattr(self, "llm_model", self.llm_model) # Default if not set
+        embedding_model = getattr(self, "embedding_model", self.embedding_model)
+        timeout = getattr(self, "request_timeout_seconds", self.request_timeout_seconds)
+        top_k = getattr(self, "top_k_retrieval", self.top_k_retrieval)
                     # And store them as instance attributes (self.attribute_name)
-        self.llm_model = getattr(self, "llm_model", "mistral:7b-instruct-v0.2-q4_K_M")
-        self.embedding_model = getattr(self, "embedding_model", "nomic-embed-text")
-        self.request_timeout_seconds = getattr(self, "request_timeout_seconds", 600.0)
-        self.top_k_retrieval = getattr(self, "top_k_retrieval", 3) # Store top_k as an instance attribute
       
         try:
             # Configure LLM and embedding
             Settings.llm = Ollama(
-                model="mistral:7b-instruct-v0.2-q4_K_M",
+                model=llm_model_val, # Use the potentially injected or default value
                 base_url="http://portable-ollama:11434",
-                request_timeout=self.request_timeout_seconds
+                request_timeout=timeout_val # Use the potentially injected or default value
             )
             Settings.embed_model = OllamaEmbedding(
-                model_name="nomic-embed-text",
+                model_name=embedding_model_val, # Use the potentially injected or default value
                 base_url="http://portable-ollama:11434",
-                 request_timeout=self.request_timeout_seconds
+                request_timeout=timeout_val # Use the potentially injected or default value
             )
 
-            print(f"--- LLM set to: {Settings.llm.model} at {Settings.llm.base_url}")
-            print(f"--- Embedding model: {Settings.embed_model.model_name} at {Settings.embed_model.base_url}")
-
-            print("--- Current sys.path for debugging: ---")
-            for p in sys.path:
-                print(f"  - {p}")
-            print("---------------------------------------")
+            print(f"--- LLM set to: {Settings.llm.model} at {Settings.llm.base_url} (Timeout: {Settings.llm.request_timeout}) ---")
+            print(f"--- Embedding model: {Settings.embed_model.model_name} at {Settings.embed_model.base_url} (Timeout: {Settings.embed_model.request_timeout}) ---")
 
             if not os.path.exists(PERSIST_DIR) or not os.listdir(PERSIST_DIR):
                 print(f"--- Index storage directory {PERSIST_DIR} not found or empty. Building new index. ---")
