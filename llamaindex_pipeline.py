@@ -1,12 +1,35 @@
 """
 title: PCG RAG Pipeline
 author: Your Name
-date: 2025-07-31
+date: 2025-08-04
 version: 1.0
 license: MIT
 description: A pipeline for retrieving relevant information from a knowledge base using the Llama Index library.
 requirements: llama-index
+
+# --- ADD THIS VALVES SECTION ---
+valves:
+  - name: llm_model
+    type: text
+    default: mistral:7b-instruct-v0.2-q4_K_M
+    description: The Ollama LLM model to use for RAG responses.
+  - name: embedding_model
+    type: text
+    default: nomic-embed-text
+    description: The Ollama embedding model for indexing and retrieval.
+  - name: request_timeout_seconds
+    type: number
+    default: 600.0
+    description: Timeout for Ollama requests in seconds.
+  - name: top_k_retrieval
+    type: number
+    default: 3
+    description: Number of top relevant documents to retrieve for RAG.
+# --- END VALVES SECTION ---
 """
+
+
+
 
 from typing import List, Union, Generator, Iterator
 import sys
