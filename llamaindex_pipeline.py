@@ -1,21 +1,17 @@
 """
 title: PCG RAG Pipeline
 author: Your Name
-date: 2025-08-04
-version: 1.0
+date: 2025-08-08
+version: 2.0
 license: MIT
-description: A pipeline for retrieving relevant information from a knowledge base using the Llama Index library.
+description: A pipeline for retrieving relevant information from a Qdrant knowledge base using LlamaIndex.
 requirements: llama-index
 
 valves:
   - name: llm_model
     type: text
-    default: mistral:7b-instruct-v0.2-q4_K_M
+    default: dolphina:latest
     description: The Ollama LLM model to use for RAG responses.
-  - name: embedding_model
-    type: text
-    default: nomic-embed-text
-    description: The Ollama embedding model for indexing and retrieval.
   - name: request_timeout_seconds
     type: number
     default: 600.0
@@ -29,23 +25,20 @@ from typing import List, Union, Generator, Iterator
 import sys
 import os
 import traceback
+import urllib.parse
 
-# This schema import is often needed for pipelines, add it if not present
-from schemas import OpenAIChatMessage
-from llama_index.core import (
-    VectorStoreIndex, SimpleDirectoryReader, Settings,
-    StorageContext, load_index_from_storage
-)
+from qdrant_client import QdrantClient
+from llama_index.vector_stores.qdrant import QdrantVectorStore
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from schemas import OpenAIChatMessage  # type: ignore
+from llama_index.core import VectorStoreIndex, Settings
 from llama_index.llms.ollama import Ollama
-from llama_index.embeddings.ollama import OllamaEmbedding
 
 class Pipeline:
     def __init__(self):
-        self.documents = None
         self.index = None
-        # These will be overwritten by the valves, but are good for defaults
-        self.llm_model = "mistral:7b-instruct-v0.2-q4_K_M"
-        self.embedding_model = "nomic-embed-text"
+        # Default values, will be overwritten by valves in the UI if changed
+        self.llm_model = "dolphina:latest"
         self.request_timeout_seconds = 600.0
         self.top_k_retrieval = 3
         print("--- Pipeline instance initialized. ---")
@@ -53,51 +46,32 @@ class Pipeline:
     async def on_startup(self):
         print("--- on_startup method called. ---")
 
-        PERSIST_DIR = "./index_storage"
-        os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "")
+        qdrant_collection_name = "pcg_documents"
+        os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "") # Workaround
 
         try:
-            # The framework automatically sets these attributes from the valves
-            llm_model_val = self.llm_model
-            embedding_model_val = self.embedding_model
-            timeout_val = self.request_timeout_seconds
-            
-            # Set up the LLM, which correctly uses request_timeout
+            # Setup LLM from valve settings
             Settings.llm = Ollama(
-                model=llm_model_val,
+                model=self.llm_model,
                 base_url="http://portable-ollama:11434",
-                request_timeout=timeout_val
+                request_timeout=self.request_timeout_seconds
             )
-            print(f"--- LLM set to: {Settings.llm.model} (Timeout: {Settings.llm.request_timeout}) ---")
+            print(f"--- LLM set to: {Settings.llm.model} ---")
 
-            # CORRECTED: Set up the Embedding Model without request_timeout
-            print("--- Attempting to set Embedding Model. ---")
-            Settings.embed_model = OllamaEmbedding(
-                model_name=embedding_model_val,
-                base_url="http://portable-ollama:11434"
-            )
-            # CORRECTED: Removed invalid attribute access from the print statement
-            print(f"--- Embedding model set to: {Settings.embed_model.model_name} ---")
+            # Use the same HuggingFace model as the indexer
+            print("--- Loading embedding model: all-MiniLM-L6-v2 ---")
+            Settings.embed_model = HuggingFaceEmbedding(model_name="all-MiniLM-L6-v2")
+            print("--- Embedding model loaded successfully. ---")
 
-            print("--- Starting index creation/loading logic. ---")
-            if not os.path.exists(PERSIST_DIR) or not os.listdir(PERSIST_DIR):
-                print(f"--- Index storage directory not found or empty. Building new index. ---")
-                # Ensure the /app/docs directory exists within the container
-                if not os.path.exists("./docs"):
-                    raise FileNotFoundError("The './docs' directory does not exist inside the container. Please create it and add your documents.")
-                self.documents = SimpleDirectoryReader("./docs").load_data()
-                print(f"--- Loaded {len(self.documents)} documents. ---")
-                
-                self.index = VectorStoreIndex.from_documents(self.documents)
-                print("--- VectorStoreIndex creation successful. ---")
-                
-                self.index.storage_context.persist(persist_dir=PERSIST_DIR)
-                print(f"--- Index persisted to {PERSIST_DIR}. ---")
-            else:
-                print(f"--- Loading index from {PERSIST_DIR}. ---")
-                storage_context = StorageContext.from_defaults(persist_dir=PERSIST_DIR)
-                self.index = load_index_from_storage(storage_context)
-                print("--- VectorStoreIndex loaded successfully. ---")
+            # Connect to the Qdrant database
+            print(f"--- Connecting to Qdrant collection: {qdrant_collection_name} ---")
+            client = QdrantClient(host="portable-qdrant", port=6334)
+            vector_store = QdrantVectorStore(client=client, collection_name=qdrant_collection_name)
+            
+            # Load the index directly from the Qdrant vector store
+            self.index = VectorStoreIndex.from_vector_store(vector_store)
+            
+            print("--- Successfully connected pipeline to Qdrant index. ---")
         
         except Exception as e:
             print(f"--- CRITICAL ERROR IN ON_STARTUP: {e} ---")
@@ -116,12 +90,38 @@ class Pipeline:
         print(f"--- Pipe received: {user_message} ---")
         
         if not self.index:
-            return "Error: Index is not initialized. Please check the startup logs."
-            
+            yield {"type": "error", "content": "Error: The Vector Index is not loaded."}
+            return
+
         query_engine = self.index.as_query_engine(
             streaming=True, 
             similarity_top_k=int(self.top_k_retrieval)
         )
+        
         response = query_engine.query(user_message)
         
-        return response.response_gen
+        def source_generator():
+            # First, stream the main text content from the LLM
+            for token in response.response_gen:
+                yield {"type": "stream", "content": token}
+
+            # After the stream, prepare the structured source data
+            source_nodes = response.source_nodes
+            sources = []
+            for node in source_nodes:
+                # Corrected to use 'filename' which matches your indexer script
+                filename = node.metadata.get('filename', 'Unknown Source')
+                content = node.get_content()
+                score = node.get_score()
+                
+                sources.append({
+                    "name": filename,
+                    "content": content,
+                    "score": score,
+                })
+
+            # Yield the special "sources" message that the UI understands
+            if sources:
+                yield {"type": "sources", "sources": sources}
+
+        return source_generator()
